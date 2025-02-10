@@ -1,211 +1,269 @@
 <!DOCTYPE html>
 <html lang="ko">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>이벤트 추첨</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
-        body {
-            font-family: 'Arial', sans-serif;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        .container {
-            display: flex;
-            gap: 20px;
-        }
-        .raw-data {
-            flex: 1;
-            padding: 20px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-        }
-        .ranking {
-            flex: 1;
-            padding: 20px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-        }
-        .rank-item {
-            display: flex;
-            margin: 10px 0;
-            padding: 10px;
-            background-color: #f5f5f5;
-            border-radius: 5px;
-        }
-        .rank-1 { background-color: #007bff; color: white; }
-        .rank-2 { background-color: #ffc107; }
-        .rank-3 { background-color: #28a745; color: white; }
-        .rank-number {
-            width: 50px;
-            font-weight: bold;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        th, td {
-            padding: 8px;
-            text-align: left;
-            border-bottom: 1px solid #ddd;
-        }
-        button {
-            padding: 10px 20px;
-            margin: 10px;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-        button:hover {
-            background-color: #45a049;
-        }
-        .center {
-            text-align: center;
-        }
-        #drawResult {
-            margin-top: 20px;
-            padding: 20px;
-            background-color: #f8f9fa;
-            border-radius: 5px;
-            text-align: center;
-            font-size: 1.2em;
-        }
+      body {
+          font-family: 'Arial', sans-serif;
+          max-width: 1200px;
+          margin: 0 auto;
+          padding: 20px;
+      }
+      .container {
+          display: flex;
+          gap: 20px;
+      }
+      .raw-data {
+          flex: 1;
+          padding: 20px;
+          border: 1px solid #ccc;
+          border-radius: 5px;
+      }
+      .ranking {
+          flex: 1;
+          padding: 20px;
+          border: 1px solid #ccc;
+          border-radius: 5px;
+      }
+      .rank-item {
+          display: flex;
+          margin: 10px 0;
+          padding: 10px;
+          background-color: #f5f5f5;
+          border-radius: 5px;
+      }
+      .rank-1 { background-color: #007bff; color: white; }
+      .rank-2 { background-color: #ffc107; }
+      .rank-3 { background-color: #28a745; color: white; }
+      .rank-number {
+          width: 50px;
+          font-weight: bold;
+      }
+      table {
+          width: 100%;
+          border-collapse: collapse;
+      }
+      th, td {
+          padding: 8px;
+          text-align: left;
+          border-bottom: 1px solid #ddd;
+      }
+      button {
+          padding: 10px 20px;
+          margin: 10px;
+          background-color: #4CAF50;
+          color: white;
+          border: none;
+          border-radius: 5px;
+          cursor: pointer;
+      }
+      button:hover {
+          background-color: #45a049;
+      }
+      .center {
+          text-align: center;
+      }
+      #drawResult {
+          margin-top: 20px;
+          padding: 20px;
+          background-color: #f8f9fa;
+          border-radius: 5px;
+          text-align: center;
+          font-size: 1.2em;
+      }
+      .option-container {
+          background-color: #f8f9fa;
+          padding: 15px;
+          border-radius: 5px;
+          display: inline-block;
+      }
+
+      .option-container label {
+          cursor: pointer;
+          padding: 5px 10px;
+      }
+
+      button:disabled {
+          background-color: #cccccc;
+          cursor: not-allowed;
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <h1 class="center">이벤트 추첨</h1>
     <div class="center">
-        <input type="file" id="fileUpload" accept=".xlsx, .xls" />
-        <button onclick="handleFile()">파일 읽기</button>
-        <button onclick="drawRandom()">랜덤 추첨</button>
+      <input type="file" id="fileUpload" accept=".xlsx, .xls" />
+      <button onclick="handleFile()">파일 읽기</button>
+      <div class="option-container" style="margin: 20px 0;">
+        <label style="margin-right: 20px;">
+          <input type="radio" name="drawOption" value="unique" />
+          중복 당첨 방지 모드 (1인 1경품)
+        </label>
+        <label>
+          <input type="radio" name="drawOption" value="multiple" />
+          다중 당첨 허용 모드 (1인 다수 경품 가능)
+        </label>
+      </div>
+      <button onclick="drawRandom()" id="drawButton" disabled>랜덤 추첨</button>
     </div>
     <div id="drawResult"></div>
     <div class="container">
-        <div class="raw-data">
-            <h2>로우 데이터</h2>
-            <table id="rawDataTable">
-                <thead>
-                    <tr>
-                        <th>응모순서</th>
-                        <th>이메일</th>
-                        <th>응모 횟수</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
-        </div>
-        <div class="ranking">
-            <h2>순위표 (TOP 100)</h2>
-            <div id="rankingList"></div>
-        </div>
+      <div class="raw-data">
+        <h2>로우 데이터</h2>
+        <table id="rawDataTable">
+          <thead>
+            <tr>
+              <th>응모순서</th>
+              <th>이메일</th>
+              <th>응모 횟수</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="ranking">
+        <h2>순위표 (TOP 100)</h2>
+        <div id="rankingList"></div>
+      </div>
     </div>
 
     <script>
-        let excelData = [];
-        let emailCounts = {}; // 이메일별 응모 횟수를 저장할 객체
+      let excelData = [];
+      let emailCounts = {}; // 이메일별 응모 횟수를 저장할 객체
+      let usedEmails = new Set(); // 이미 당첨된 이메일 저장
 
-        function handleFile() {
-            const fileUpload = document.getElementById('fileUpload');
-            const file = fileUpload.files[0];
-            
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const data = new Uint8Array(e.target.result);
-                    const workbook = XLSX.read(data, {type: 'array'});
-                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-                    
-                    // A열의 데이터만 읽어오기
-                    const range = XLSX.utils.decode_range(firstSheet['!ref']);
-                    excelData = [];
-                    
-                    // 각 행을 순회하면서 A열의 데이터만 추출
-                    for (let row = range.s.r; row <= range.e.r; row++) {
-                        const cellAddress = XLSX.utils.encode_cell({r: row, c: 0}); // A열 (0번 열)
-                        const cell = firstSheet[cellAddress];
-                        
-                        if (cell && cell.v) { // 셀이 존재하고 값이 있는 경우만
-                            const email = cell.v;
-                            // 각 행을 개별 항목으로 추가 (중복 유지)
-                            excelData.push({
-                                'email': email,
-                                'originalRow': row + 1
-                            });
-                        }
-                    }
-                    
-                    // 이메일별 응모 횟수 계산
-                    emailCounts = {};
-                    excelData.forEach(item => {
-                        emailCounts[item.email] = (emailCounts[item.email] || 0) + 1;
-                    });
-                    
-                    displayRawData();
-                    document.getElementById('rankingList').innerHTML = '<p>랜덤 추첨 버튼을 눌러주세요.</p>';
-                };
-                reader.readAsArrayBuffer(file);
-            } else {
-                alert('파일을 선택해주세요!');
-            }
-        }
+      function handleFile() {
+          const fileUpload = document.getElementById('fileUpload');
+          const file = fileUpload.files[0];
 
-        function displayRawData() {
-            const tbody = document.querySelector('#rawDataTable tbody');
-            tbody.innerHTML = '';
-            
-            // 모든 데이터 표시 (중복 포함)
-            excelData.forEach((item, index) => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td>${index + 1}</td>
-                    <td>${item.email}</td>
-                    <td>응모 ${emailCounts[item.email]}회</td>
-                `;
-                tbody.appendChild(tr);
-            });
-        }
+          if (file) {
+              const reader = new FileReader();
+              reader.onload = function(e) {
+                  const data = new Uint8Array(e.target.result);
+                  const workbook = XLSX.read(data, {type: 'array'});
+                  const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
 
-        function drawRandom() {
-            if (excelData.length === 0) {
-                alert('먼저 엑셀 파일을 읽어주세요!');
-                return;
-            }
+                  // A열의 데이터만 읽어오기
+                  const range = XLSX.utils.decode_range(firstSheet['!ref']);
+                  excelData = [];
 
-            // 전체 배열을 섞기 (각 행이 독립적인 응모 기회)
-            let shuffledData = [...excelData];
-            for (let i = shuffledData.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [shuffledData[i], shuffledData[j]] = [shuffledData[j], shuffledData[i]];
-            }
+                  // 각 행을 순회하면서 A열의 데이터만 추출
+                  for (let row = range.s.r; row <= range.e.r; row++) {
+                      const cellAddress = XLSX.utils.encode_cell({r: row, c: 0}); // A열 (0번 열)
+                      const cell = firstSheet[cellAddress];
 
-            // 순위표 업데이트
-            const rankingList = document.getElementById('rankingList');
-            rankingList.innerHTML = '';
-            
-            // 상위 100개 표시 (30개에서 100개로 변경)
-            shuffledData.slice(0, 100).forEach((row, index) => {
-                const rankDiv = document.createElement('div');
-                rankDiv.className = `rank-item ${index < 3 ? 'rank-' + (index + 1) : ''}`;
-                rankDiv.innerHTML = `
-                    <span class="rank-number">${index + 1}등</span>
-                    <span>${row['email']} (총 ${emailCounts[row.email]}회 응모)</span>
-                `;
-                rankingList.appendChild(rankDiv);
-            });
+                      if (cell && cell.v) { // 셀이 존재하고 값이 있는 경우만
+                          const email = cell.v;
+                          // 각 행을 개별 항목으로 추가 (중복 유지)
+                          excelData.push({
+                              'email': email,
+                              'originalRow': row + 1
+                          });
+                      }
+                  }
 
-            // 로우 데이터 테이블 업데이트 (원본 데이터 유지)
-            displayRawData();
+                  // 이메일별 응모 횟수 계산
+                  emailCounts = {};
+                  excelData.forEach(item => {
+                      emailCounts[item.email] = (emailCounts[item.email] || 0) + 1;
+                  });
 
-            // 1등 당첨자 표시
-            document.getElementById('drawResult').innerHTML = `
-                <h3>🎉 당첨자 🎉</h3>
-                <p>이메일: ${shuffledData[0]['email']} (총 ${emailCounts[shuffledData[0].email]}회 응모)</p>
-            `;
-        }
+                  displayRawData();
+                  document.getElementById('rankingList').innerHTML = '<p>랜덤 추첨 버튼을 눌러주세요.</p>';
+              };
+              reader.readAsArrayBuffer(file);
+          } else {
+              alert('파일을 선택해주세요!');
+          }
+      }
+
+      function displayRawData() {
+          const tbody = document.querySelector('#rawDataTable tbody');
+          tbody.innerHTML = '';
+
+          // 모든 데이터 표시 (중복 포함)
+          excelData.forEach((item, index) => {
+              const tr = document.createElement('tr');
+              tr.innerHTML = `
+                  <td>${index + 1}</td>
+                  <td>${item.email}</td>
+                  <td>응모 ${emailCounts[item.email]}회</td>
+              `;
+              tbody.appendChild(tr);
+          });
+      }
+
+      // 라디오 버튼 이벤트 리스너 추가
+      document.querySelectorAll('input[name="drawOption"]').forEach(radio => {
+          radio.addEventListener('change', function() {
+              document.getElementById('drawButton').disabled = false;
+              if (this.value === 'unique') {
+                  usedEmails.clear(); // 옵션 변경시 당첨자 목록 초기화
+              }
+          });
+      });
+
+      function drawRandom() {
+          if (excelData.length === 0) {
+              alert('먼저 엑셀 파일을 읽어주세요!');
+              return;
+          }
+
+          const drawOption = document.querySelector('input[name="drawOption"]:checked');
+          if (!drawOption) {
+              alert('추첨 방식을 선택해주세요!');
+              return;
+          }
+
+          // 전체 배열을 섞기
+          let shuffledData = [...excelData];
+          for (let i = shuffledData.length - 1; i > 0; i--) {
+              const j = Math.floor(Math.random() * (i + 1));
+              [shuffledData[i], shuffledData[j]] = [shuffledData[j], shuffledData[i]];
+          }
+
+          if (drawOption.value === 'unique') {
+              // 중복 당첨 방지 모드
+              shuffledData = shuffledData.filter(item => !usedEmails.has(item.email));
+              if (shuffledData.length === 0) {
+                  alert('모든 참가자가 이미 당첨되었습니다!');
+                  return;
+              }
+          }
+
+          // 순위표 업데이트
+          const rankingList = document.getElementById('rankingList');
+          rankingList.innerHTML = '';
+
+          // 상위 100개 표시
+          const winners = shuffledData.slice(0, 100);
+          winners.forEach((row, index) => {
+              const rankDiv = document.createElement('div');
+              rankDiv.className = `rank-item ${index < 3 ? 'rank-' + (index + 1) : ''}`;
+              rankDiv.innerHTML = `
+                  <span class="rank-number">${index + 1}등</span>
+                  <span>${row['email']} (총 ${emailCounts[row.email]}회 응모)</span>
+              `;
+              rankingList.appendChild(rankDiv);
+          });
+
+          // 중복 당첨 방지 모드에서는 당첨된 이메일 저장
+          if (drawOption.value === 'unique') {
+              winners.forEach(winner => usedEmails.add(winner.email));
+          }
+
+          // 로우 데이터 테이블 업데이트
+          displayRawData();
+
+          // 1등 당첨자 표시
+          document.getElementById('drawResult').innerHTML = `
+              <h3>🎉 당첨자 🎉</h3>
+              <p>이메일: ${winners[0]['email']} (총 ${emailCounts[winners[0].email]}회 응모)</p>
+          `;
+      }
     </script>
-</body>
-</html> 
+  </body>
+</html>
