@@ -90,6 +90,31 @@
           background-color: #cccccc;
           cursor: not-allowed;
       }
+      .statistics {
+          margin: 20px 0;
+          padding: 20px;
+          background-color: #f8f9fa;
+          border-radius: 5px;
+      }
+      .stats-container {
+          display: flex;
+          gap: 20px;
+      }
+      .stats-item {
+          flex: 1;
+          padding: 15px;
+          background-color: white;
+          border-radius: 5px;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      }
+      .top-participant {
+          display: flex;
+          justify-content: space-between;
+          padding: 5px 10px;
+          margin: 5px 0;
+          background-color: #f5f5f5;
+          border-radius: 3px;
+      }
     </style>
   </head>
   <body>
@@ -110,6 +135,19 @@
       <button onclick="drawRandom()" id="drawButton" disabled>랜덤 추첨</button>
     </div>
     <div id="drawResult"></div>
+    <div id="statistics" class="statistics" style="display: none;">
+      <h2>통계 정보</h2>
+      <div class="stats-container">
+        <div class="stats-item">
+          <h3>기본 통계</h3>
+          <div id="basicStats"></div>
+        </div>
+        <div class="stats-item">
+          <h3>최다 참여자 TOP 10</h3>
+          <div id="topParticipants"></div>
+        </div>
+      </div>
+    </div>
     <div class="container">
       <div class="raw-data">
         <h2>로우 데이터</h2>
@@ -172,6 +210,7 @@
                   });
 
                   displayRawData();
+                  updateStatistics();
                   document.getElementById('rankingList').innerHTML = '<p>랜덤 추첨 버튼을 눌러주세요.</p>';
               };
               reader.readAsArrayBuffer(file);
@@ -263,6 +302,39 @@
               <h3>🎉 당첨자 🎉</h3>
               <p>이메일: ${winners[0]['email']} (총 ${emailCounts[winners[0].email]}회 응모)</p>
           `;
+      }
+
+      function updateStatistics() {
+          const statsDiv = document.getElementById('statistics');
+          statsDiv.style.display = 'block';
+
+          // 기본 통계 계산
+          const uniqueParticipants = new Set(excelData.map(item => item.email)).size;
+          const totalEntries = excelData.length;
+          const averageEntries = (totalEntries / uniqueParticipants).toFixed(2);
+
+          // 최다 참여자 정렬
+          const sortedParticipants = Object.entries(emailCounts)
+              .sort((a, b) => b[1] - a[1])
+              .slice(0, 10);
+
+          // 기본 통계 표시
+          document.getElementById('basicStats').innerHTML = `
+              <p>총 참여자 수: <strong>${uniqueParticipants}명</strong></p>
+              <p>총 미션 수: <strong>${totalEntries}개</strong></p>
+              <p>1인당 평균 참여 횟수: <strong>${averageEntries}회</strong></p>
+              <p>참여율: <strong>${(totalEntries/uniqueParticipants).toFixed(2)}%</strong></p>
+          `;
+
+          // 최다 참여자 표시
+          const topParticipantsHTML = sortedParticipants.map((participant, index) => `
+              <div class="top-participant">
+                  <span>${index + 1}. ${participant[0]}</span>
+                  <span>${participant[1]}회</span>
+              </div>
+          `).join('');
+
+          document.getElementById('topParticipants').innerHTML = topParticipantsHTML;
       }
     </script>
   </body>
