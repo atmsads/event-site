@@ -132,7 +132,24 @@
           다중 당첨 허용 모드 (1인 다수 경품 가능)
         </label>
       </div>
-      <button onclick="drawRandom()" id="drawButton" disabled>랜덤 추첨</button>
+      <div
+        class="option-container"
+        style="margin: 20px 0; background-color: #f8f9fa; padding: 15px; border-radius: 5px;"
+      >
+        <label style="margin-right: 20px;">
+          당첨자 수:
+          <input
+            type="number"
+            id="winnerCount"
+            min="1"
+            value="1"
+            style="width: 60px; padding: 5px;"
+          />
+        </label>
+        <button onclick="drawRandom()" id="drawButton" disabled>
+          랜덤 추첨
+        </button>
+      </div>
     </div>
     <div id="drawResult"></div>
     <div id="statistics" class="statistics" style="display: none;">
@@ -184,21 +201,18 @@
                   const workbook = XLSX.read(data, {type: 'array'});
                   const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
 
-                  // A열의 데이터만 읽어오기
                   const range = XLSX.utils.decode_range(firstSheet['!ref']);
                   excelData = [];
 
-                  // 각 행을 순회하면서 A열의 데이터만 추출
-                  for (let row = range.s.r; row <= range.e.r; row++) {
-                      const cellAddress = XLSX.utils.encode_cell({r: row, c: 0}); // A열 (0번 열)
-                      const cell = firstSheet[cellAddress];
+                  for (let row = range.s.r + 1; row <= range.e.r; row++) {
+                      const emailCell = firstSheet[XLSX.utils.encode_cell({r: row, c: 0})]; // A열 (이메일)
+                      const instaCell = firstSheet[XLSX.utils.encode_cell({r: row, c: 1})]; // B열 (인스타그램)
 
-                      if (cell && cell.v) { // 셀이 존재하고 값이 있는 경우만
-                          const email = cell.v;
-                          // 각 행을 개별 항목으로 추가 (중복 유지)
+                      if (emailCell && emailCell.v) {
                           excelData.push({
-                              'email': email,
-                              'originalRow': row + 1
+                              'email': emailCell.v,
+                              'instagram': instaCell ? instaCell.v : '',
+                              'originalRow': row
                           });
                       }
                   }
@@ -219,16 +233,30 @@
           }
       }
 
+      // 이메일 마스킹 함수 추가
+      function maskEmail(email) {
+          if (!email) return '';
+          const atIndex = email.indexOf('@');
+          if (atIndex <= 3) return email; // @ 기호가 너무 앞에 있는 경우 처리
+
+          const firstThree = email.substring(0, 3);
+          const restBeforeAt = '*'.repeat(atIndex - 3);
+          const domain = email.substring(atIndex).split('.');
+          const maskedDomain = domain.map(part => '*'.repeat(part.length)).join('.');
+
+          return `${firstThree}${restBeforeAt}@${maskedDomain}`;
+      }
+
+      // 로우 데이터 표시 함수 수정
       function displayRawData() {
           const tbody = document.querySelector('#rawDataTable tbody');
           tbody.innerHTML = '';
 
-          // 모든 데이터 표시 (중복 포함)
           excelData.forEach((item, index) => {
               const tr = document.createElement('tr');
               tr.innerHTML = `
                   <td>${index + 1}</td>
-                  <td>${item.email}</td>
+                  <td>${maskEmail(item.email)}${item.instagram ? ` / ${item.instagram}` : ''}</td>
                   <td>응모 ${emailCounts[item.email]}회</td>
               `;
               tbody.appendChild(tr);
@@ -257,6 +285,12 @@
               return;
           }
 
+          const winnerCount = parseInt(document.getElementById('winnerCount').value) || 1;
+          if (winnerCount < 1) {
+              alert('당첨자 수는 1명 이상이어야 합니다.');
+              return;
+          }
+
           // 전체 배열을 섞기
           let shuffledData = [...excelData];
           for (let i = shuffledData.length - 1; i > 0; i--) {
@@ -267,8 +301,8 @@
           if (drawOption.value === 'unique') {
               // 중복 당첨 방지 모드
               shuffledData = shuffledData.filter(item => !usedEmails.has(item.email));
-              if (shuffledData.length === 0) {
-                  alert('모든 참가자가 이미 당첨되었습니다!');
+              if (shuffledData.length < winnerCount) {
+                  alert(`남은 참가자가 ${shuffledData.length}명 뿐입니다. 당첨자 수를 줄여주세요!`);
                   return;
               }
           }
@@ -284,23 +318,27 @@
               rankDiv.className = `rank-item ${index < 3 ? 'rank-' + (index + 1) : ''}`;
               rankDiv.innerHTML = `
                   <span class="rank-number">${index + 1}등</span>
-                  <span>${row['email']} (총 ${emailCounts[row.email]}회 응모)</span>
+                  <span>${maskEmail(row['email'])}${row.instagram ? ` / ${row.instagram}` : ''} (총 ${emailCounts[row.email]}회 응모)</span>
               `;
               rankingList.appendChild(rankDiv);
           });
 
           // 중복 당첨 방지 모드에서는 당첨된 이메일 저장
           if (drawOption.value === 'unique') {
-              winners.forEach(winner => usedEmails.add(winner.email));
+              winners.slice(0, winnerCount).forEach(winner => usedEmails.add(winner.email));
           }
 
           // 로우 데이터 테이블 업데이트
           displayRawData();
 
-          // 1등 당첨자 표시
+          // 당첨자 표시
+          const winnersList = winners.slice(0, winnerCount)
+              .map(winner => `${maskEmail(winner.email)}${winner.instagram ? ` / ${winner.instagram}` : ''} (총 ${emailCounts[winner.email]}회 응모)`)
+              .join('<br>');
+
           document.getElementById('drawResult').innerHTML = `
               <h3>🎉 당첨자 🎉</h3>
-              <p>이메일: ${winners[0]['email']} (총 ${emailCounts[winners[0].email]}회 응모)</p>
+              <p>${winnersList}</p>
           `;
       }
 
@@ -327,12 +365,15 @@
           `;
 
           // 최다 참여자 표시
-          const topParticipantsHTML = sortedParticipants.map((participant, index) => `
-              <div class="top-participant">
-                  <span>${index + 1}. ${participant[0]}</span>
-                  <span>${participant[1]}회</span>
-              </div>
-          `).join('');
+          const topParticipantsHTML = sortedParticipants.map((participant, index) => {
+              const participantData = excelData.find(item => item.email === participant[0]) || {};
+              return `
+                  <div class="top-participant">
+                      <span>${index + 1}. ${maskEmail(participant[0])}${participantData.instagram ? ` / ${participantData.instagram}` : ''}</span>
+                      <span>총 ${participant[1]}회 응모</span>
+                  </div>
+              `;
+          }).join('');
 
           document.getElementById('topParticipants').innerHTML = topParticipantsHTML;
       }
