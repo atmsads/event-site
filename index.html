@@ -247,6 +247,17 @@
           return `${firstThree}${restBeforeAt}@${maskedDomain}`;
       }
 
+      // 인스타그램 아이디 마스킹 함수 추가
+      function maskInstagram(instagram) {
+          if (!instagram) return '';
+          if (instagram.length <= 3) return instagram;
+
+          const firstThree = instagram.substring(0, 3);
+          const restMasked = '*'.repeat(instagram.length - 3);
+
+          return `${firstThree}${restMasked}`;
+      }
+
       // 로우 데이터 표시 함수 수정
       function displayRawData() {
           const tbody = document.querySelector('#rawDataTable tbody');
@@ -256,7 +267,7 @@
               const tr = document.createElement('tr');
               tr.innerHTML = `
                   <td>${index + 1}</td>
-                  <td>${maskEmail(item.email)}${item.instagram ? ` / ${item.instagram}` : ''}</td>
+                  <td>${maskEmail(item.email)}${item.instagram ? ` / ${maskInstagram(item.instagram)}` : ''}</td>
                   <td>응모 ${emailCounts[item.email]}회</td>
               `;
               tbody.appendChild(tr);
@@ -318,7 +329,7 @@
               rankDiv.className = `rank-item ${index < 3 ? 'rank-' + (index + 1) : ''}`;
               rankDiv.innerHTML = `
                   <span class="rank-number">${index + 1}등</span>
-                  <span>${maskEmail(row['email'])}${row.instagram ? ` / ${row.instagram}` : ''} (총 ${emailCounts[row.email]}회 응모)</span>
+                  <span>${maskEmail(row['email'])}${row.instagram ? ` / ${maskInstagram(row.instagram)}` : ''} (총 ${emailCounts[row.email]}회 응모)</span>
               `;
               rankingList.appendChild(rankDiv);
           });
@@ -333,7 +344,7 @@
 
           // 당첨자 표시
           const winnersList = winners.slice(0, winnerCount)
-              .map(winner => `${maskEmail(winner.email)}${winner.instagram ? ` / ${winner.instagram}` : ''} (총 ${emailCounts[winner.email]}회 응모)`)
+              .map(winner => `${maskEmail(winner.email)}${winner.instagram ? ` / ${maskInstagram(winner.instagram)}` : ''}`)
               .join('<br>');
 
           document.getElementById('drawResult').innerHTML = `
@@ -369,7 +380,7 @@
               const participantData = excelData.find(item => item.email === participant[0]) || {};
               return `
                   <div class="top-participant">
-                      <span>${index + 1}. ${maskEmail(participant[0])}${participantData.instagram ? ` / ${participantData.instagram}` : ''}</span>
+                      <span>${index + 1}. ${maskEmail(participant[0])}${participantData.instagram ? ` / ${maskInstagram(participantData.instagram)}` : ''}</span>
                       <span>총 ${participant[1]}회 응모</span>
                   </div>
               `;
