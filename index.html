@@ -252,6 +252,9 @@
       function maskInstagram(instagram) {
           const limit = 5;
           if (!instagram) return '';
+          if(typeof instagram !== 'string') {
+            instagram = String(instagram);
+          }
           if (instagram.length <= limit) return instagram;
 
           const firstThree = instagram.substring(0, limit);
