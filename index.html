@@ -235,12 +235,13 @@
 
       // 이메일 마스킹 함수 추가
       function maskEmail(email) {
+          const limit = 5;
           if (!email) return '';
           const atIndex = email.indexOf('@');
-          if (atIndex <= 3) return email; // @ 기호가 너무 앞에 있는 경우 처리
+          if (atIndex <= limit) return email; // @ 기호가 너무 앞에 있는 경우 처리
 
-          const firstThree = email.substring(0, 3);
-          const restBeforeAt = '*'.repeat(atIndex - 3);
+          const firstThree = email.substring(0, limit);
+          const restBeforeAt = '*'.repeat(atIndex - limit);
           const domain = email.substring(atIndex).split('.');
           const maskedDomain = domain.map(part => '*'.repeat(part.length)).join('.');
 
@@ -249,11 +250,12 @@
 
       // 인스타그램 아이디 마스킹 함수 추가
       function maskInstagram(instagram) {
+          const limit = 3;
           if (!instagram) return '';
-          if (instagram.length <= 3) return instagram;
+          if (instagram.length <= limit) return instagram;
 
-          const firstThree = instagram.substring(0, 3);
-          const restMasked = '*'.repeat(instagram.length - 3);
+          const firstThree = instagram.substring(0, limit);
+          const restMasked = '*'.repeat(instagram.length - limit);
 
           return `${firstThree}${restMasked}`;
       }
