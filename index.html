@@ -115,6 +115,35 @@
           background-color: #f5f5f5;
           border-radius: 3px;
       }
+
+      .loading-container {
+          display: none;
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: rgba(0, 0, 0, 0.5);
+          z-index: 1000;
+          justify-content: center;
+          align-items: center;
+      }
+
+
+      @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+      }
+
+      .loading-spinner {
+          width: 32px;
+          height: 32px;
+          border: 5px solid #f3f3f3;
+          border-top: 5px solid #3498db;
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+          margin: 0 auto;
+      }
     </style>
   </head>
   <body>
@@ -180,9 +209,13 @@
         </table>
       </div>
       <div class="ranking">
-        <h2>순위표 (TOP 100)</h2>
+        <h2>당첨자 순위표</h2>
         <div id="rankingList"></div>
       </div>
+    </div>
+
+    <div class="loading-container">
+      <div class="loading-spinner"></div>
     </div>
 
     <script>
@@ -289,7 +322,24 @@
           });
       });
 
-      function drawRandom() {
+      // 암호학적으로 안전한 난수 생성 함수
+      function getSecureRandom() {
+          // window.crypto.getRandomValues()는 암호학적으로 안전한 난수를 생성
+          const array = new Uint32Array(1);
+          window.crypto.getRandomValues(array);
+          return array[0] / (0xffffffff + 1); // 0과 1 사이의 값으로 정규화
+      }
+
+      function secureShuffle(array) {
+          for (let i = array.length - 1; i > 0; i--) {
+              // Math.random() 대신 암호학적으로 안전한 난수 사용
+              const j = Math.floor(getSecureRandom() * (i + 1));
+              [array[i], array[j]] = [array[j], array[i]];
+          }
+          return array;
+      }
+
+      async function drawRandom() {
           if (excelData.length === 0) {
               alert('먼저 엑셀 파일을 읽어주세요!');
               return;
@@ -307,55 +357,81 @@
               return;
           }
 
-          // 전체 배열을 섞기
-          let shuffledData = [...excelData];
-          for (let i = shuffledData.length - 1; i > 0; i--) {
-              const j = Math.floor(Math.random() * (i + 1));
-              [shuffledData[i], shuffledData[j]] = [shuffledData[j], shuffledData[i]];
+          const loadingContainer = document.querySelector('.loading-container');
+          loadingContainer.style.display = 'flex';
+
+          await new Promise(resolve => setTimeout(resolve, 0));
+
+          try {
+            // 응모 횟수를 반영한 참가자 풀 생성
+            let availableParticipants = [];
+            excelData.forEach(entry => {
+                if (!usedEmails.has(entry.email)) {
+                    availableParticipants.push(entry.email);
+                }
+            });
+
+            const winners = new Set();
+            while (winners.size < winnerCount) {
+                if (availableParticipants.length === 0) {
+                    alert('추첨 가능한 참가자가 부족합니다.');
+                    return;
+                }
+
+                await new Promise(resolve => setTimeout(resolve, 200)); // 각 추첨마다 지연
+
+                // 매 추첨마다 새로운 랜덤 인덱스 생성
+                const randomIndex = Math.floor(getSecureRandom() * availableParticipants.length);
+                const selectedEmail = availableParticipants[randomIndex];
+
+                winners.add(selectedEmail);
+
+                // 참가자 풀에서 사용된 이메일 제거
+                availableParticipants = availableParticipants.filter(
+                    email => email !== selectedEmail
+                );
+
+                // 중복 당첨 방지 모드에서는 사용된 이메일 저장
+                if (drawOption.value === 'unique') {
+                    usedEmails.add(selectedEmail);
+                }
+            }
+
+            // 결과 표시 전 약간의 지연
+            await new Promise(resolve => setTimeout(resolve, 300));
+
+            // 순위표 업데이트
+            const rankingList = document.getElementById('rankingList');
+            rankingList.innerHTML = '';
+            const topWinners = Array.from(winners)
+            topWinners.forEach((row, index) => {
+                const rankDiv = document.createElement('div');
+                rankDiv.className = `rank-item ${index < 3 ? 'rank-' + (index + 1) : ''}`;
+                rankDiv.innerHTML = `
+                    <span class="rank-number">${index + 1}등</span>
+                    <span>${maskEmail(row)}${excelData.find(item => item.email === row).instagram ? ` / ${maskInstagram(excelData.find(item => item.email === row).instagram)}` : ''} (총 ${emailCounts[row]}회 응모)</span>
+                `;
+                rankingList.appendChild(rankDiv);
+            });
+
+            // 로우 데이터 테이블 업데이트
+            displayRawData();
+
+            // 당첨자 표시
+            const winnersList = Array.from(winners)
+                .map(winner => `${maskEmail(winner)}${excelData.find(item => item.email === winner).instagram ? ` / ${maskInstagram(excelData.find(item => item.email === winner).instagram)}` : ''}`)
+                .join('<br>');
+
+            document.getElementById('drawResult').innerHTML = `
+                <h3>🎉 당첨자 🎉</h3>
+                <p>${winnersList}</p>
+            `;
+          } catch (error) {
+            alert('추첨 중 오류가 발생했습니다. 다시 시도해주세요.');
+          } finally {
+            loadingContainer.style.display = 'none';
           }
 
-          if (drawOption.value === 'unique') {
-              // 중복 당첨 방지 모드
-              shuffledData = shuffledData.filter(item => !usedEmails.has(item.email));
-              if (shuffledData.length < winnerCount) {
-                  alert(`남은 참가자가 ${shuffledData.length}명 뿐입니다. 당첨자 수를 줄여주세요!`);
-                  return;
-              }
-          }
-
-          // 순위표 업데이트
-          const rankingList = document.getElementById('rankingList');
-          rankingList.innerHTML = '';
-
-          // 상위 100개 표시
-          const winners = shuffledData.slice(0, 100);
-          winners.forEach((row, index) => {
-              const rankDiv = document.createElement('div');
-              rankDiv.className = `rank-item ${index < 3 ? 'rank-' + (index + 1) : ''}`;
-              rankDiv.innerHTML = `
-                  <span class="rank-number">${index + 1}등</span>
-                  <span>${maskEmail(row['email'])}${row.instagram ? ` / ${maskInstagram(row.instagram)}` : ''} (총 ${emailCounts[row.email]}회 응모)</span>
-              `;
-              rankingList.appendChild(rankDiv);
-          });
-
-          // 중복 당첨 방지 모드에서는 당첨된 이메일 저장
-          if (drawOption.value === 'unique') {
-              winners.slice(0, winnerCount).forEach(winner => usedEmails.add(winner.email));
-          }
-
-          // 로우 데이터 테이블 업데이트
-          displayRawData();
-
-          // 당첨자 표시
-          const winnersList = winners.slice(0, winnerCount)
-              .map(winner => `${maskEmail(winner.email)}${winner.instagram ? ` / ${maskInstagram(winner.instagram)}` : ''}`)
-              .join('<br>');
-
-          document.getElementById('drawResult').innerHTML = `
-              <h3>🎉 당첨자 🎉</h3>
-              <p>${winnersList}</p>
-          `;
       }
 
       function updateStatistics() {
